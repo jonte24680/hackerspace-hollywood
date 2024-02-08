@@ -28,14 +28,25 @@ spin_up() {
 	local dir="v"
 	local split=1
 	sleep 0.5
+	# go thru all subprograms in random order or until specified splitch is reache
 	for w in $(ls "$WIDGET_DIR" | sort -R); do
+		#switchse split directions
 		[ "$dir" = "-v" ] && dir="-h" || dir="-v"
-		panes=$(tmux list-panes -t $PKG 2>/dev/null)
+		# get all tmux windos sections
 		# Allow for failed widgets
+		panes=$(tmux list-panes -t $PKG 2>/dev/null)
+		# get number of tumx window sections
 		splits=$(echo "$panes" | wc -l)
+		# gets a random tmux window section
 		pane=$((RANDOM % $splits))
+		# splits rand selected plane on changing direction
+		# and starts a randomSubProgram
 		tmux split-window $dir -t ${PKG}.$pane "nice -n 19 $WIDGET_DIR/$w" >/dev/null 2>&1
+		
 		sleep 0.2
+
+		# count the amount of splits done 
+		# and stops if desierd amount is reache
 		split=$((split+1))
 		if [ $split -ge $SPLITS ]; then
 			break
@@ -43,9 +54,12 @@ spin_up() {
 	done
 }
 
+# gets the directeri for the subPrograms
 WIDGET_DIR="$(dirname $0)/../lib/$PKG"
+# get the amount of subPorgrams
 SPLITS=$(ls "$WIDGET_DIR" | wc -l)
 DELAY=10
+
 while [ ! -z "$1" ]; do
 	case "$1" in
 		-d|--delay)
@@ -62,7 +76,9 @@ while [ ! -z "$1" ]; do
 	esac
 done
 
+# get a random subProgram
 widget1=$(ls "$WIDGET_DIR/" | sort -R | head -n1)
+#widget1="time"
 arrangements="main-horizontal main-vertical tiled"
 
 if [ -z "$TMUX" ]; then
@@ -74,13 +90,18 @@ if [ -z "$TMUX" ]; then
 	else
 		tmux_launcher=tmux
 	fi
+	# Starts new tmux session in background with name $PKG
 	$tmux_launcher new-session -d -s $PKG "/bin/bash"
+	# write to tmux to start a new hollywood in it
 	$tmux_launcher send-keys -t $PKG "$0 -s $SPLITS -d $DELAY"
 	$tmux_launcher send-keys -t $PKG Enter
+	# Connects the terminal to created tmux session
 	exec $tmux_launcher attach-session -t $PKG
+	# if exec cant execut command
 	exit 1
 fi
 
+# creates new window
 tmux new-window -n $PKG "$WIDGET_DIR/$widget1" \; \
 	set-option -g pane-active-border-bg "default" \; \
 	set-option -g pane-active-border-fg "default" >/dev/null 2>&1
@@ -90,10 +111,13 @@ spin_up
 i=0
 while true; do
 	i=$((i+1))
+	# if desired delay is reached
 	if [ "$((i % DELAY))" = "0" ]; then
+		# kill all tmux window section exept current one
 		tmux kill-pane -a -t $PKG.bottom-right
 		spin_up
-	fi
+	fi 
+	# probebly exit consision of user wants to exit
 	if [ $(tmux list-panes -t $PKG 2>/dev/null | wc -l) -gt 0 ]; then
 		sleep 1
 		continue
